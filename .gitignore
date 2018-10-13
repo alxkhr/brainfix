@@ -1,0 +1,20 @@
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm
+
+*.iml
+lib/
+
+## Directory-based project format:
+.idea/
+*.ipr
+*.iws
+.gradle/
+gradle/
+build/
+
+## Plugin-specific files:
+
+# IntelliJ
+out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
