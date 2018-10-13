@@ -18,3 +18,9 @@ out/
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
+
+# npm
+node_modules/
+
+# webpack target
+WebApp/dist/
