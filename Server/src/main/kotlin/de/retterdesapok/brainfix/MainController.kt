@@ -135,7 +135,7 @@ class MainController {
     fun setNotes(response: HttpServletResponse,
                  model: MutableMap<String, Any>,
                  @RequestParam("token") token: String?,
-                 @RequestParam("jsonData") jsonData: String?): String {
+                 @RequestBody jsonData: String?): String {
 
         response.status = HttpServletResponse.SC_BAD_REQUEST
 
