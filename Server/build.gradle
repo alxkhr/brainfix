@@ -1,4 +1,4 @@
-group 'de.retterdesapok.alager'
+group 'de.retterdesapok.brainfix.server'
 version '1.0-SNAPSHOT'
 
 buildscript {
