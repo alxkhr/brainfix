@@ -9,7 +9,7 @@ class User {
     @Id
     @GeneratedValue
     var id: Long? = null
-    var email: String? = null
-    var passwordHash: String? = null
+    var email: String = ""
+    var passwordHash: String = ""
     var isActive: Boolean = false
 }

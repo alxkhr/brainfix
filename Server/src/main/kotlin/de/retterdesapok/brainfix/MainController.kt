@@ -2,9 +2,12 @@ package de.retterdesapok.brainfix.rest
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import de.retterdesapok.brainfix.Utilities
 import de.retterdesapok.brainfix.dbaccess.AccessTokenRepository
+import de.retterdesapok.brainfix.dbaccess.NoteRepository
 import de.retterdesapok.brainfix.dbaccess.UserRepository
 import de.retterdesapok.brainfix.entities.AccessToken
+import de.retterdesapok.brainfix.entities.Note
 import de.retterdesapok.brainfix.entities.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
@@ -21,20 +24,33 @@ class MainController {
     private val userRepository: UserRepository? = null
     @Autowired
     private val accessTokenRepository: AccessTokenRepository? = null
+    @Autowired
+    private val noteRepository: NoteRepository? = null
 
-    @RequestMapping(path = arrayOf("/createtestuser"))
+    @RequestMapping(path = arrayOf("/api/createtestuser"))
     @ResponseBody
     fun createAnton(): String {
-        var anton = User()
-        anton.passwordHash = "\$2a\$10\$JW3zkNq1L/Iew613cPpAMuUfOQRrpTt8D0WtrXJAJeHGoB3GUnBrC"
+        val anton = User()
+        val passwordEncoder = BCryptPasswordEncoder()
+        anton.passwordHash = passwordEncoder.encode("test")
         anton.email = "test@test.de"
         anton.isActive = true
         userRepository?.save(anton)
 
-        var allUsers = userRepository?.findAll()
+        val note = Note()
+        note.content = "Testnotiz für #Anton"
+        note.dateCreated = Utilities.getCurrentDateString()
+        note.dateModified = Utilities.getCurrentDateString()
+        note.dateSync = Utilities.getCurrentDateString()
+        note.encryptionType = 0
+        note.userId = anton.id!!
+        note.uuid = UUID.randomUUID().toString()
+        noteRepository?.save(note)
 
-        val JSON = ObjectMapper().registerModule(KotlinModule())
-        return JSON.writeValueAsString(allUsers)
+        val allUsers = userRepository?.findAll()
+
+        val json = ObjectMapper().registerModule(KotlinModule())
+        return json.writeValueAsString(allUsers)
     }
 
     @RequestMapping(value = "/test")
@@ -44,35 +60,34 @@ class MainController {
     }
 
 
-
-    @RequestMapping("/register")
+    @RequestMapping("/api/register")
     @ResponseBody
-    fun doRegister(response : HttpServletResponse,
-                model: MutableMap<String, Any>,
-                @RequestParam("username") username: String?,
-                @RequestParam("password") password: String?): String {
+    fun doRegister(response: HttpServletResponse,
+                   model: MutableMap<String, Any>,
+                   @RequestParam("username") username: String?,
+                   @RequestParam("password") password: String?): String {
 
         var userExists = false
 
-        if(username != null) {
+        if (username != null) {
             val user = userRepository?.findByEmail(username)
             userExists = user != null
         }
 
-        if(userExists) {
+        if (userExists) {
             response.status = HttpServletResponse.SC_NOT_ACCEPTABLE
-            return "Username already taken"
+            return "Username already taken. Brain too slow. Fix brain!"
         }
 
         val user = User()
-        user.email = username
+        user.email = username!!
         val passwordEncoder = BCryptPasswordEncoder()
         user.passwordHash = passwordEncoder.encode(password)
         user.isActive = true
         userRepository?.save(user)
 
-        var accessToken = AccessToken()
-        accessToken.userId = user.id
+        val accessToken = AccessToken()
+        accessToken.userId = user.id!!
         val createdToken = UUID.randomUUID().toString()
         accessToken.token = createdToken
         accessToken.valid = true
@@ -82,9 +97,9 @@ class MainController {
         return createdToken
     }
 
-    @RequestMapping("/requestToken")
+    @RequestMapping("/api/requestToken")
     @ResponseBody
-    fun doLogin(response : HttpServletResponse,
+    fun doLogin(response: HttpServletResponse,
                 model: MutableMap<String, Any>,
                 @RequestParam("username") username: String?,
                 @RequestParam("password") password: String?): String {
@@ -93,26 +108,26 @@ class MainController {
         var passwordCorrect = false
         var user: User? = null
 
-        if(username != null) {
+        if (username != null) {
             user = userRepository?.findByEmail(username)
             userExists = user != null
         }
 
-        if(userExists) {
+        if (userExists) {
             val passwordEncoder = BCryptPasswordEncoder()
 
-            if(passwordEncoder.matches(password, user?.passwordHash)) {
+            if (passwordEncoder.matches(password, user?.passwordHash)) {
                 passwordCorrect = true
             }
         }
 
-        if(!userExists || !passwordCorrect) {
+        if (!userExists || !passwordCorrect) {
             response.status = HttpServletResponse.SC_BAD_REQUEST
-            return "incorrect password, bitch";
+            return "Password incorrect. Fix brain!";
         }
 
-        var accessToken = AccessToken()
-        accessToken.userId = user?.id
+        val accessToken = AccessToken()
+        accessToken.userId = user!!.id!!
         val createdToken = UUID.randomUUID().toString()
         accessToken.token = createdToken
         accessToken.valid = true
@@ -120,6 +135,59 @@ class MainController {
 
         response.status = HttpServletResponse.SC_OK
         return createdToken
+    }
+
+    @RequestMapping("/api/getNotes")
+    @ResponseBody
+    fun getNotes(response: HttpServletResponse,
+                 model: MutableMap<String, Any>,
+                 @RequestParam("token") token: String?,
+                 @RequestParam("lastSync") dateLastSync: String?): String {
+
+        response.status = HttpServletResponse.SC_BAD_REQUEST
+
+        if (token == null || token.length < 16) {
+            return "No many parameter. Fix brain!";
+        }
+
+        val accessToken = accessTokenRepository?.findByToken(token)
+
+
+        if (accessToken == null || !accessToken.valid) {
+            return "This no valid token. Fix brain!";
+        }
+
+        val notes = noteRepository?.findAllByUserId(accessToken.userId);
+
+        response.status = HttpServletResponse.SC_OK
+        val json = ObjectMapper().registerModule(KotlinModule())
+        return json.writeValueAsString(notes)
+    }
+
+    @RequestMapping("/api/setNotes")
+    @ResponseBody
+    fun setNotes(response: HttpServletResponse,
+                 model: MutableMap<String, Any>,
+                 @RequestParam("token") token: String?,
+                 @RequestParam("jsonData") jsonData: String?): String {
+
+        response.status = HttpServletResponse.SC_BAD_REQUEST
+
+        if (token == null || token.length < 16) {
+            return "More parameters! Bad brain. Fix brain.";
+        }
+
+        val accessToken = accessTokenRepository?.findByToken(token)
+
+        if (accessToken == null || !accessToken.valid) {
+            return "This no valid token. Fix brain!";
+        }
+
+        val notes = noteRepository?.findAllByUserId(accessToken.userId);
+
+        response.status = HttpServletResponse.SC_OK
+        val json = ObjectMapper().registerModule(KotlinModule())
+        return json.writeValueAsString(notes)
     }
 
     @ResponseBody
