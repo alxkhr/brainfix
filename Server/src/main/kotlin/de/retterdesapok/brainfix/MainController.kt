@@ -1,4 +1,4 @@
-package de.retterdesapok.alager.rest
+package de.retterdesapok.brainfix.rest
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
@@ -23,6 +23,7 @@ class MainController {
     private val accessTokenRepository: AccessTokenRepository? = null
 
     @RequestMapping(path = arrayOf("/createtestuser"))
+    @ResponseBody
     fun createAnton(): String {
         var anton = User()
         anton.passwordHash = "\$2a\$10\$JW3zkNq1L/Iew613cPpAMuUfOQRrpTt8D0WtrXJAJeHGoB3GUnBrC"
@@ -37,11 +38,52 @@ class MainController {
     }
 
     @RequestMapping(value = "/test")
+    @ResponseBody
     fun testPage(): String {
         return "Test"
     }
 
-    @RequestMapping("/getToken", method = arrayOf(RequestMethod.POST), produces = arrayOf("application/text"))
+
+
+    @RequestMapping("/register")
+    @ResponseBody
+    fun doRegister(response : HttpServletResponse,
+                model: MutableMap<String, Any>,
+                @RequestParam("username") username: String?,
+                @RequestParam("password") password: String?): String {
+
+        var userExists = false
+
+        if(username != null) {
+            val user = userRepository?.findByEmail(username)
+            userExists = user != null
+        }
+
+        if(userExists) {
+            response.status = HttpServletResponse.SC_NOT_ACCEPTABLE
+            return "Username already taken"
+        }
+
+        val user = User()
+        user.email = username
+        val passwordEncoder = BCryptPasswordEncoder()
+        user.passwordHash = passwordEncoder.encode(password)
+        user.isActive = true
+        userRepository?.save(user)
+
+        var accessToken = AccessToken()
+        accessToken.userId = user.id
+        val createdToken = UUID.randomUUID().toString()
+        accessToken.token = createdToken
+        accessToken.valid = true
+        accessTokenRepository?.save(accessToken)
+
+        response.status = HttpServletResponse.SC_OK
+        return createdToken
+    }
+
+    @RequestMapping("/requestToken")
+    @ResponseBody
     fun doLogin(response : HttpServletResponse,
                 model: MutableMap<String, Any>,
                 @RequestParam("username") username: String?,
@@ -78,5 +120,10 @@ class MainController {
 
         response.status = HttpServletResponse.SC_OK
         return createdToken
+    }
+
+    @ResponseBody
+    fun errorPage(model: MutableMap<String, Any>): String {
+        return "error"
     }
 }
