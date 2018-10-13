@@ -34,7 +34,7 @@ class MainController {
         var anton = User()
         val passwordEncoder = BCryptPasswordEncoder()
         anton.passwordHash = passwordEncoder.encode("test")
-        anton.email = "test@test.de"
+        anton.username = "test"
         anton.isActive = true
         anton = userRepository?.save(anton)!!
 
@@ -72,7 +72,7 @@ class MainController {
         var user: User? = null
 
         if(username != null) {
-            user = userRepository?.findByEmail(username)
+            user = userRepository?.findByUsername(username)
             userExists = user != null
         }
 
@@ -85,7 +85,7 @@ class MainController {
             }
         } else {
             user = User()
-            user.email = username!!
+            user.username = username!!
             user.passwordHash = passwordEncoder.encode(password)
             user.isActive = true
             userRepository?.save(user)
@@ -111,7 +111,7 @@ class MainController {
 
         response.status = HttpServletResponse.SC_BAD_REQUEST
 
-        if (token == null || token.length < 16) {
+        if (token == null || token.length < 16 || dateLastSync == null) {
             return "No many parameter. Fix brain!";
         }
 
@@ -123,7 +123,7 @@ class MainController {
             return "This no valid token. Fix brain!";
         }
 
-        val notes = noteRepository?.findAllByUserId(accessToken.userId);
+        val notes = noteRepository?.findAllByUserIdSinceDate(accessToken.userId, dateLastSync!!);
 
         response.status = HttpServletResponse.SC_OK
         val json = ObjectMapper().registerModule(KotlinModule())
@@ -154,10 +154,15 @@ class MainController {
         val list: List<Note> = json.readValue(jsonData)
         for(note in list) {
             note.dateSync = Utilities.getCurrentDateString()
+            note.userId = accessToken.userId
             val existingNote = noteRepository!!.findByUuid(note.uuid!!)
             if(existingNote == null) {
                 note.id = null
                 noteRepository?.save(note)
+            } else {
+                existingNote.content = note.content
+                existingNote.dateModified = note.dateModified
+                noteRepository?.save(existingNote)
             }
         }
 

@@ -13,7 +13,7 @@ import java.util.Locale
 class Utilities {
     companion object {
         fun getCurrentDateString(): String? {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.UK)
             val formattedDate = sdf.format(Date())
             return formattedDate
         }
