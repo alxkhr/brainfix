@@ -13,7 +13,8 @@ import java.util.Locale
 class Utilities {
     companion object {
         fun getCurrentDateString(): String? {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.UK)
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
             val formattedDate = sdf.format(Date())
             return formattedDate
         }
